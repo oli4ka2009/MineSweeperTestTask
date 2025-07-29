@@ -1,0 +1,187 @@
+﻿@using MineSweeper.Extensions
+@model GameBoard
+
+@{
+    ViewData["Title"] = "Сапер";
+}
+
+<style>
+    .game-board { border-spacing: 0; }
+    .game-board td {
+        width: 30px;
+        height: 30px;
+        text-align: center;
+        vertical-align: middle;
+        border: 1px solid #ccc;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    .cell-btn {
+        width: 100%;
+        height: 100%;
+        border: 2px outset #eee;
+        background-color: #ddd;
+        display: block;
+        padding: 0; /* Скидаємо внутрішні відступи */
+    }
+
+    .cell-btn:hover {
+        background-color: #e8e8e8;
+    }
+
+    .cell-revealed {
+        background-color: #f5f5f5;
+    }
+</style>
+
+<h3>Гравець: @Context.Session.GetString("PlayerName")</h3>
+
+<form id="mode-form" method="post" asp-action="SetMode">
+    <label>
+        <input type="radio" name="currentMode" value="reveal" onchange="this.form.submit()"
+        @(Context.Session.GetString("GameMode") != "flag" ? "checked" : "") />
+        Відкрити
+    </label>
+    <label>
+        <input type="radio" name="currentMode" value="flag" onchange="this.form.submit()"
+        @(Context.Session.GetString("GameMode") == "flag" ? "checked" : "") />
+        Прапорець
+    </label>
+</form>
+
+@{
+    // Рахуємо кількість встановлених прапорців
+    int flagsPlaced = Model.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
+    int minesLeft = Model.MinesCount - flagsPlaced;
+
+    var startTime = Context.Session.GetObject<DateTime?>("GameStartTime");
+    TimeSpan elapsedTime = TimeSpan.Zero;
+    if (startTime.HasValue)
+    {
+        elapsedTime = DateTime.UtcNow - startTime.Value;
+    }
+}
+
+<div style="display: flex; ...">
+    <span style="color: red;">💣 Залишилось: @minesLeft</span>
+
+    <span id="game-timer" style="color: black;">🕒 @elapsedTime.ToString(@"mm\:ss")</span>
+</div>
+
+@if (Model.IsGameOver)
+{
+    <div style="color: red; font-weight: bold; font-size: 24px; margin: 20px 0;">Гру закінчено!</div>
+    <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
+}
+else if (Model.IsGameWon)
+{
+    <div style="color: green; font-weight: bold; font-size: 24px; margin: 20px 0;">Перемога!</div>
+    <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
+}
+
+<table class="game-board">
+    <tbody>
+        @for (int i = 0; i < Model.Height; i++)
+        {
+            <tr>
+                @for (int j = 0; j < Model.Width; j++)
+                {
+                    var cell = Model.Cells[i][j];
+                    <td>
+                        @if (cell.IsRevealed || (Model.IsGameOver && cell.IsMine && !cell.IsFlagged))
+                        {
+                            <div class="cell-revealed">
+                                @if (cell.IsMine)
+                                {
+                                    <span style="@(cell.IsRevealed ? "background-color: red;" : "")">💣</span>
+                                }
+                                else if (cell.AdjacentMines > 0)
+                                {
+                                    <span style="color: @(GetNumberColor(cell.AdjacentMines))">@cell.AdjacentMines</span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <form asp-action="HandleClick" method="post" style="margin:0; padding:0;">
+                                <input type="hidden" name="row" value="@i" />
+                                <input type="hidden" name="col" value="@j" />
+                                <button type="submit" class="cell-btn" disabled="@(Model.IsGameOver || Model.IsGameWon)">
+                                    @if (cell.IsFlagged)
+                                    {
+                                        <span>🚩</span>
+                                    }
+                                    else
+                                    {
+                                        <span>&nbsp;</span>
+                                    }
+                                </button>
+                            </form>
+                        }
+                    </td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+
+@functions {
+    // Допоміжна функція для кольорів цифр
+    string GetNumberColor(int number)
+    {
+        switch (number)
+        {
+            case 1: return "blue";
+            case 2: return "green";
+            case 3: return "red";
+            case 4: return "darkblue";
+            case 5: return "maroon";
+            case 6: return "teal";
+            case 7: return "black";
+            case 8: return "grey";
+            default: return "black";
+        }
+    }
+}
+
+<script>
+    // Створюємо глобальну змінну для зберігання ID нашого таймера
+    let timerInterval;
+
+    function startTimer() {
+        // Зупиняємо будь-який попередній таймер, щоб уникнути їх нашарування
+        clearInterval(timerInterval);
+
+        const timerElement = document.getElementById('game-timer');
+        const isGameOver = @(Model.IsGameOver || Model.IsGameWon ? "true" : "false");
+        const gameHasStarted = @(startTime.HasValue ? "true" : "false");
+
+        if (timerElement && gameHasStarted && !isGameOver) {
+
+            // Розраховуємо початкові хвилини та секунди
+            const initialTimeParts = timerElement.innerText.replace('🕒', '').trim().split(':');
+            let minutes = parseInt(initialTimeParts[0]);
+            let seconds = parseInt(initialTimeParts[1]);
+
+            // Запускаємо новий таймер і зберігаємо його ID
+            timerInterval = setInterval(() => {
+                seconds++;
+                if (seconds >= 60) {
+                    seconds = 0;
+                    minutes++;
+                }
+
+                // Форматуємо рядок, щоб завжди було два знаки (наприклад, "01:09")
+                const formattedSeconds = seconds < 10 ? '0' + seconds : seconds;
+                const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+
+                timerElement.innerText = `🕒 ${formattedMinutes}:${formattedSeconds}`;
+            }, 1000);
+        }
+    }
+
+    // Запускаємо нашу функцію, коли сторінка завантажиться
+    startTimer();
+</script>
