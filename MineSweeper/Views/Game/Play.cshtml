@@ -1,12 +1,14 @@
-﻿@using MineSweeper.Extensions
-@model GameBoard
+﻿@model MineSweeper.Models.ViewModels.PlayViewModel
 
 @{
     ViewData["Title"] = "Сапер";
 }
 
 <style>
-    .game-board { border-spacing: 0; }
+    .game-board {
+        border-spacing: 0;
+    }
+
     .game-board td {
         width: 30px;
         height: 30px;
@@ -16,14 +18,14 @@
         font-weight: bold;
         font-size: 16px;
     }
-    
+
     .cell-btn {
         width: 100%;
         height: 100%;
         border: 2px outset #eee;
         background-color: #ddd;
         display: block;
-        padding: 0; /* Скидаємо внутрішні відступи */
+        padding: 0;
     }
 
     .cell-btn:hover {
@@ -35,7 +37,7 @@
     }
 </style>
 
-<h3>Гравець: @Context.Session.GetString("PlayerName")</h3>
+<h3>Гравець: @Model.PlayerName</h3>
 
 <form id="mode-form" method="post" asp-action="SetMode">
     <label>
@@ -50,31 +52,17 @@
     </label>
 </form>
 
-@{
-    // Рахуємо кількість встановлених прапорців
-    int flagsPlaced = Model.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
-    int minesLeft = Model.MinesCount - flagsPlaced;
-
-    var startTime = Context.Session.GetObject<DateTime?>("GameStartTime");
-    TimeSpan elapsedTime = TimeSpan.Zero;
-    if (startTime.HasValue)
-    {
-        elapsedTime = DateTime.UtcNow - startTime.Value;
-    }
-}
-
-<div style="display: flex; ...">
-    <span style="color: red;">💣 Залишилось: @minesLeft</span>
-
-    <span id="game-timer" style="color: black;">🕒 @elapsedTime.ToString(@"mm\:ss")</span>
+<div style="display: flex; justify-content: space-between; max-width: 300px; margin-bottom: 10px; font-size: 20px; font-weight: bold;">
+    <span style="color: red;">💣 Залишилось: @Model.MinesLeft</span>
+    <span id="game-timer" style="color: black;">🕒 @Model.ElapsedTimeFormatted</span>
 </div>
 
-@if (Model.IsGameOver)
+@if (Model.Board.IsGameOver)
 {
     <div style="color: red; font-weight: bold; font-size: 24px; margin: 20px 0;">Гру закінчено!</div>
     <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
 }
-else if (Model.IsGameWon)
+else if (Model.Board.IsGameWon)
 {
     <div style="color: green; font-weight: bold; font-size: 24px; margin: 20px 0;">Перемога!</div>
     <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
@@ -82,14 +70,14 @@ else if (Model.IsGameWon)
 
 <table class="game-board">
     <tbody>
-        @for (int i = 0; i < Model.Height; i++)
+        @for (int i = 0; i < Model.Board.Height; i++)
         {
             <tr>
-                @for (int j = 0; j < Model.Width; j++)
+                @for (int j = 0; j < Model.Board.Width; j++)
                 {
-                    var cell = Model.Cells[i][j];
+                    var cell = Model.Board.Cells[i][j];
                     <td>
-                        @if (cell.IsRevealed || (Model.IsGameOver && cell.IsMine && !cell.IsFlagged))
+                        @if (cell.IsRevealed || (Model.Board.IsGameOver && cell.IsMine && !cell.IsFlagged))
                         {
                             <div class="cell-revealed">
                                 @if (cell.IsMine)
@@ -107,7 +95,7 @@ else if (Model.IsGameWon)
                             <form asp-action="HandleClick" method="post" style="margin:0; padding:0;">
                                 <input type="hidden" name="row" value="@i" />
                                 <input type="hidden" name="col" value="@j" />
-                                <button type="submit" class="cell-btn" disabled="@(Model.IsGameOver || Model.IsGameWon)">
+                                <button type="submit" class="cell-btn" disabled="@(Model.Board.IsGameOver || Model.Board.IsGameWon)">
                                     @if (cell.IsFlagged)
                                     {
                                         <span>🚩</span>
@@ -126,9 +114,7 @@ else if (Model.IsGameWon)
     </tbody>
 </table>
 
-
 @functions {
-    // Допоміжна функція для кольорів цифр
     string GetNumberColor(int number)
     {
         switch (number)
@@ -147,41 +133,33 @@ else if (Model.IsGameWon)
 }
 
 <script>
-    // Створюємо глобальну змінну для зберігання ID нашого таймера
     let timerInterval;
 
     function startTimer() {
-        // Зупиняємо будь-який попередній таймер, щоб уникнути їх нашарування
         clearInterval(timerInterval);
 
         const timerElement = document.getElementById('game-timer');
-        const isGameOver = @(Model.IsGameOver || Model.IsGameWon ? "true" : "false");
-        const gameHasStarted = @(startTime.HasValue ? "true" : "false");
+        const isGameOver = @(Model.Board.IsGameOver || Model.Board.IsGameWon ? "true" : "false");
+        const gameHasStarted = @(!string.IsNullOrEmpty(Model.ElapsedTimeFormatted) ? "true" : "false");
 
         if (timerElement && gameHasStarted && !isGameOver) {
 
-            // Розраховуємо початкові хвилини та секунди
             const initialTimeParts = timerElement.innerText.replace('🕒', '').trim().split(':');
             let minutes = parseInt(initialTimeParts[0]);
             let seconds = parseInt(initialTimeParts[1]);
 
-            // Запускаємо новий таймер і зберігаємо його ID
             timerInterval = setInterval(() => {
                 seconds++;
                 if (seconds >= 60) {
                     seconds = 0;
                     minutes++;
                 }
-
-                // Форматуємо рядок, щоб завжди було два знаки (наприклад, "01:09")
                 const formattedSeconds = seconds < 10 ? '0' + seconds : seconds;
                 const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
-
                 timerElement.innerText = `🕒 ${formattedMinutes}:${formattedSeconds}`;
             }, 1000);
         }
     }
 
-    // Запускаємо нашу функцію, коли сторінка завантажиться
     startTimer();
 </script>

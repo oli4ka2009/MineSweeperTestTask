@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MineSweeper.Constants;
 using MineSweeper.Extensions;
 using MineSweeper.Models;
 using MineSweeper.Models.ViewModels;
@@ -44,13 +45,13 @@ namespace MineSweeper.Controllers
                     return View(model);
                 }
 
-                HttpContext.Session.SetString("PlayerName", model.PlayerName);
+                HttpContext.Session.SetString(SessionKeys.PlayerName, model.PlayerName);
 
                 GameBoard board = _boardFactory.Create(model.Width, model.Height, model.Mines);
 
-                HttpContext.Session.SetObject("GameBoard", board);
-                HttpContext.Session.SetString("GameMode", "reveal");
-                HttpContext.Session.Remove("GameStartTime");
+                HttpContext.Session.SetObject(SessionKeys.GameBoard, board);
+                HttpContext.Session.SetString(SessionKeys.GameMode, "reveal");
+                HttpContext.Session.Remove(SessionKeys.GameStartTime);
                 return RedirectToAction("Play");
             }
 
@@ -60,21 +61,52 @@ namespace MineSweeper.Controllers
         }
 
         // Дія для відображення ігрового поля
-        public ActionResult Play()
+        public IActionResult Play()
         {
-            var board = HttpContext.Session.GetObject<GameBoard>("GameBoard");
+            // 1. Отримуємо дошку з сесії
+            var board = HttpContext.Session.GetObject<GameBoard>(SessionKeys.GameBoard);
+
+            // Якщо дошки в сесії немає (наприклад, сесія закінчилася),
+            // перенаправляємо на сторінку створення нової гри.
             if (board == null)
             {
-                return RedirectToAction("Index"); // Якщо гри немає, повертаємо на старт
+                return RedirectToAction("Index");
             }
-            return View(board);
+
+            // 2. Розраховуємо кількість мін, що залишилися
+            int flagsPlaced = board.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
+            int minesLeft = board.MinesCount - flagsPlaced;
+
+            // 3. Розраховуємо час, що минув
+            var startTime = HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime);
+            TimeSpan elapsedTime = TimeSpan.Zero;
+
+            if (startTime.HasValue)
+            {
+                // Якщо гра ще триває, рахуємо час від старту до зараз.
+                // Якщо гра закінчена, час "заморожується" на момент останнього ходу,
+                // оскільки цей код виконується лише при перезавантаженні сторінки.
+                elapsedTime = DateTime.UtcNow - startTime.Value;
+            }
+
+            // 4. Створюємо та заповнюємо ViewModel
+            var viewModel = new PlayViewModel
+            {
+                Board = board,
+                PlayerName = HttpContext.Session.GetString(SessionKeys.PlayerName) ?? "Гравець",
+                MinesLeft = minesLeft,
+                ElapsedTimeFormatted = elapsedTime.ToString(@"mm\:ss") // Форматуємо час
+            };
+
+            // 5. Передаємо готову ViewModel у представлення
+            return View(viewModel);
         }
 
         [HttpPost]
         public IActionResult HandleClick(int row, int col)
         {
-            var board = HttpContext.Session.GetObject<GameBoard>("GameBoard");
-            var gameMode = HttpContext.Session.GetString("GameMode") ?? "reveal";
+            var board = HttpContext.Session.GetObject<GameBoard>(SessionKeys.GameBoard);
+            var gameMode = HttpContext.Session.GetString(SessionKeys.GameMode) ?? "reveal";
 
             if (board == null || board.IsGameOver)
             {
@@ -97,14 +129,14 @@ namespace MineSweeper.Controllers
                 }
             }
 
-            if (HttpContext.Session.GetObject<DateTime?>("GameStartTime") == null)
+            if (HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime) == null)
             {
                 // Зберігаємо поточний час як час початку
-                HttpContext.Session.SetObject("GameStartTime", DateTime.UtcNow);
+                HttpContext.Session.SetObject(SessionKeys.GameStartTime, DateTime.UtcNow);
             }
             // Тут буде логіка перевірки на перемогу/поразку
 
-            HttpContext.Session.SetObject("GameBoard", board); // Зберігаємо оновлене поле
+            HttpContext.Session.SetObject(SessionKeys.GameBoard, board); // Зберігаємо оновлене поле
             return RedirectToAction("Play"); // Перенаправляємо назад на ігрове поле
         }
 
@@ -112,7 +144,7 @@ namespace MineSweeper.Controllers
         public IActionResult SetMode(string currentMode)
         {
             // Зберігаємо вибраний режим у сесію
-            HttpContext.Session.SetString("GameMode", currentMode ?? "reveal");
+            HttpContext.Session.SetString(SessionKeys.GameMode, currentMode ?? "reveal");
 
             // Повертаємо користувача на ігрове поле
             return RedirectToAction("Play");
