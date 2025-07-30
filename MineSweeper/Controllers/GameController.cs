@@ -11,11 +11,13 @@ namespace MineSweeper.Controllers
     {
         private readonly IGameBoardFactory _boardFactory;
         private readonly IGameService _gameService;
+        private readonly IMinesweeperSolver _solverService;
 
-        public GameController(IGameBoardFactory boardFactory, IGameService gameService)
+        public GameController(IGameBoardFactory boardFactory, IGameService gameService, IMinesweeperSolver solverService)
         {
             _boardFactory = boardFactory;
             _gameService = gameService;
+            _solverService = solverService;
         }
 
         public ActionResult Index()
@@ -147,6 +149,66 @@ namespace MineSweeper.Controllers
             HttpContext.Session.SetString(SessionKeys.GameMode, currentMode ?? "reveal");
 
             // Повертаємо користувача на ігрове поле
+            return RedirectToAction("Play");
+        }
+
+        [HttpPost]
+        public IActionResult SolveNextStep()
+        {
+            var board = HttpContext.Session.GetObject<GameBoard>("GameBoard");
+            if (board == null || board.IsGameOver || board.IsGameWon)
+            {
+                return RedirectToAction("Play");
+            }
+
+            bool isFirstMove = !board.Cells.SelectMany(r => r).Any(c => c.IsRevealed);
+            SolverMove? move = null;
+
+            if (isFirstMove)
+            {
+                // Якщо це перший хід, робимо його випадково
+                var random = new Random();
+                int row = random.Next(board.Height);
+                int col = random.Next(board.Width);
+                move = new SolverMove { Row = row, Col = col, Action = MoveAction.Reveal };
+            }
+            else
+            {
+                // 1. Спочатку шукаємо логічний хід
+                move = _solverService.FindNextMove(board);
+
+                // 2. Якщо логічного ходу немає, бот вгадує
+                if (move == null)
+                {
+                    TempData["SolverMessage"] = "Логічного ходу не знайдено, бот вгадує.";
+                    move = _solverService.FindBestGuess(board);
+                }
+            }
+
+            // Виконуємо знайдений хід (логічний або випадковий)
+            if (move != null)
+            {
+                if (move.Action == MoveAction.Flag)
+                {
+                    _gameService.ToggleFlag(board, move.Row, move.Col);
+                }
+                else
+                {
+                    _gameService.RevealCell(board, move.Row, move.Col);
+                }
+
+                // Перевіряємо на перемогу після будь-якого ходу
+                if (!board.IsGameOver && _gameService.CheckForWin(board))
+                {
+                    board.IsGameWon = true;
+                }
+            }
+            else
+            {
+                TempData["SolverMessage"] = "Бот не може зробити хід (можливо, гра завершена).";
+            }
+
+            HttpContext.Session.SetObject("GameBoard", board);
             return RedirectToAction("Play");
         }
     }

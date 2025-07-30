@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IGameBoardFactory, GameBoardFactory>();
 builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddScoped<IMinesweeperSolver, MinesweeperSolver>();
 
 builder.Services.AddDistributedMemoryCache(); // Додає кеш в пам'яті для зберігання сесії
 

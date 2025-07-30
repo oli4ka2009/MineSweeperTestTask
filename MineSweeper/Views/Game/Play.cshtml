@@ -57,6 +57,13 @@
     <span id="game-timer" style="color: black;">🕒 @Model.ElapsedTimeFormatted</span>
 </div>
 
+@if (!Model.Board.IsGameOver && !Model.Board.IsGameWon)
+{
+    <form asp-action="SolveNextStep" method="post" style="margin: 10px 0;">
+        <button type="submit" class="btn btn-info">Підказка від бота</button>
+    </form>
+}
+
 @if (Model.Board.IsGameOver)
 {
     <div style="color: red; font-weight: bold; font-size: 24px; margin: 20px 0;">Гру закінчено!</div>
@@ -133,10 +140,12 @@ else if (Model.Board.IsGameWon)
 }
 
 <script>
-    let timerInterval;
+    // Зробимо змінну дійсно глобальною, щоб вона не губилася
+    window.minesweeperTimerInterval = window.minesweeperTimerInterval || null;
 
     function startTimer() {
-        clearInterval(timerInterval);
+        // Завжди зупиняємо попередній таймер перед початком
+        clearInterval(window.minesweeperTimerInterval);
 
         const timerElement = document.getElementById('game-timer');
         const isGameOver = @(Model.Board.IsGameOver || Model.Board.IsGameWon ? "true" : "false");
@@ -144,22 +153,27 @@ else if (Model.Board.IsGameWon)
 
         if (timerElement && gameHasStarted && !isGameOver) {
 
+            // Зчитуємо час, щойно отриманий з сервера
             const initialTimeParts = timerElement.innerText.replace('🕒', '').trim().split(':');
-            let minutes = parseInt(initialTimeParts[0]);
-            let seconds = parseInt(initialTimeParts[1]);
+            let minutes = parseInt(initialTimeParts[0]) || 0;
+            let seconds = parseInt(initialTimeParts[1]) || 0;
 
-            timerInterval = setInterval(() => {
+            // Запускаємо новий інтервал
+            window.minesweeperTimerInterval = setInterval(() => {
                 seconds++;
                 if (seconds >= 60) {
                     seconds = 0;
                     minutes++;
                 }
+
                 const formattedSeconds = seconds < 10 ? '0' + seconds : seconds;
                 const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+
                 timerElement.innerText = `🕒 ${formattedMinutes}:${formattedSeconds}`;
             }, 1000);
         }
     }
 
+    // Запускаємо функцію після повного завантаження сторінки
     startTimer();
 </script>
