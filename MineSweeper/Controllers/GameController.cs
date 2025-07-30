@@ -85,26 +85,20 @@ namespace MineSweeper.Controllers
                 return RedirectToAction("Index");
             }
 
+            // Встановлюємо час початку гри при першому ході
             if (_sessionService.GetGameStartTime(HttpContext) == null)
             {
                 _sessionService.SaveGameStartTime(HttpContext);
             }
 
+            // Виконуємо хід
             _gameService.HandlePlayerMove(board, row, col, gameMode);
+
+            // Перевіряємо на перемогу і зберігаємо результат
+            await CheckAndSaveGameResult(board);
+
+            // Зберігаємо оновлену дошку
             _sessionService.SaveGameBoard(HttpContext, board);
-
-            if (board.IsGameWon)
-            {
-                var startTime = _sessionService.GetGameStartTime(HttpContext);
-                var playerName = _sessionService.GetPlayerName(HttpContext);
-                var endTime = DateTime.UtcNow;
-
-                if (startTime.HasValue)
-                {
-                    await _resultService.SaveResultAsync(board, playerName, startTime.Value, endTime);
-                    _sessionService.ClearGameStartTime(HttpContext);
-                }
-            }
 
             return RedirectToAction("Play");
         }
@@ -127,6 +121,30 @@ namespace MineSweeper.Controllers
                 return RedirectToAction("Play");
             }
 
+            // Встановлюємо час початку гри при першому ході
+            if (_sessionService.GetGameStartTime(HttpContext) == null)
+            {
+                _sessionService.SaveGameStartTime(HttpContext);
+            }
+
+            // Виконуємо хід бота
+            if (_gameService.SolveNextStep(board, _solverService))
+            {
+                // Перевіряємо на перемогу і зберігаємо результат
+                await CheckAndSaveGameResult(board);
+
+                // Зберігаємо оновлену дошку
+                _sessionService.SaveGameBoard(HttpContext, board);
+            }
+
+            return RedirectToAction("Play");
+        }
+
+        /// <summary>
+        /// Перевіряє чи гра закінчена перемогою і зберігає результат
+        /// </summary>
+        private async Task CheckAndSaveGameResult(GameBoard board)
+        {
             if (board.IsGameWon)
             {
                 var startTime = _sessionService.GetGameStartTime(HttpContext);
@@ -135,23 +153,21 @@ namespace MineSweeper.Controllers
 
                 if (startTime.HasValue)
                 {
-                    await _resultService.SaveResultAsync(board, playerName, startTime.Value, endTime);
-                    _sessionService.ClearGameStartTime(HttpContext);
-                    return RedirectToAction("Play");
+                    try
+                    {
+                        await _resultService.SaveResultAsync(board, playerName, startTime.Value, endTime);
+                        _sessionService.ClearGameStartTime(HttpContext);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Логування помилки (можна додати ILogger)
+                        // _logger.LogError(ex, "Помилка при збереженні результату гри");
+
+                        // Все одно очищуємо час початку, щоб не зберігати двічі
+                        _sessionService.ClearGameStartTime(HttpContext);
+                    }
                 }
             }
-
-            if (_sessionService.GetGameStartTime(HttpContext) == null)
-            {
-                _sessionService.SaveGameStartTime(HttpContext);
-            }
-
-            if (_gameService.SolveNextStep(board, _solverService))
-            {
-                _sessionService.SaveGameBoard(HttpContext, board);
-            }
-
-            return RedirectToAction("Play");
         }
     }
 }

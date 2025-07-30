@@ -1,0 +1,230 @@
+﻿@model MineSweeper.Models.ViewModels.LeaderboardViewModel
+
+@{
+    ViewData["Title"] = "Рейтинг гравців";
+}
+
+<style>
+    .leaderboard-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #667eea;
+    }
+
+    .difficulty-section {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .difficulty-title {
+        color: #667eea;
+        font-weight: bold;
+        font-size: 1.2em;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 5px;
+    }
+
+    .table-custom {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+        .table-custom thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+    .medal-icon {
+        font-size: 1.5em;
+        margin-right: 10px;
+    }
+
+    .position-1 {
+        background-color: #fff9c4;
+    }
+
+    .position-2 {
+        background-color: #f3f4f6;
+    }
+
+    .position-3 {
+        background-color: #fef3cd;
+    }
+
+    .no-results {
+        text-align: center;
+        color: #6b7280;
+        padding: 40px;
+        font-style: italic;
+    }
+
+    .stat-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .stat-label {
+        color: #6b7280;
+        font-size: 0.9em;
+    }
+</style>
+
+<div class="leaderboard-card">
+    <h1 class="text-center mb-0">🏆 Рейтинг гравців 🏆</h1>
+    <p class="text-center mb-0 opacity-75">Найкращі результати в грі Сапер</p>
+</div>
+
+@if (Model.TotalGamesPlayed == 0)
+{
+    <div class="no-results">
+        <h3>🎮 Поки що немає результатів</h3>
+        <p>Зіграйте першу гру, щоб з'явитися в рейтингу!</p>
+        <a href="@Url.Action("Index", "Game")" class="btn btn-primary btn-lg">Почати гру</a>
+    </div>
+}
+else
+{
+    <!-- Загальна статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">@Model.TotalGamesPlayed</div>
+                <div class="stat-label">Всього ігор</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">@Model.TotalPlayersCount</div>
+                <div class="stat-label">Гравців</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">@(Model.BestTimeOverall?.ToString(@"mm\:ss") ?? "--")</div>
+                <div class="stat-label">Найкращий час</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <div class="stat-number">👑</div>
+                <div class="stat-label">@(Model.BestPlayerOverall ?? "---")</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Рейтинги за складністю -->
+    @if (Model.BestResultsByDifficulty.Any())
+    {
+        @foreach (var difficulty in Model.BestResultsByDifficulty.OrderBy(d => d.Key))
+        {
+            <div class="difficulty-section">
+                <div class="difficulty-title">@difficulty.Key</div>
+
+                @if (difficulty.Value.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-custom mb-0">
+                            <thead>
+                                <tr>
+                                    <th width="10%">Місце</th>
+                                    <th width="35%">Гравець</th>
+                                    <th width="20%">Час</th>
+                                    <th width="35%">Дата</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < difficulty.Value.Count; i++)
+                                {
+                                    var result = difficulty.Value[i];
+                                    var position = i + 1;
+                                    var rowClass = position switch
+                                    {
+                                        1 => "position-1",
+                                        2 => "position-2",
+                                        3 => "position-3",
+                                        _ => ""
+                                    };
+
+                                    <tr class="@rowClass">
+                                        <td>
+                                            @if (position == 1)
+                                            {
+                                                <span class="medal-icon">🥇</span>
+                                            }
+                                            else if (position == 2)
+                                            {
+                                                <span class="medal-icon">🥈</span>
+                                            }
+                                            else if (position == 3)
+                                            {
+                                                <span class="medal-icon">🥉</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="fw-bold">#@position</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <strong>@result.PlayerName</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success fs-6">@result.Duration.ToString(@"mm\:ss")</span>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">@result.EndTime.ToString("dd.MM.yyyy HH:mm")</small>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center py-3">Немає результатів для цієї складності</p>
+                }
+            </div>
+        }
+    }
+
+    <div class="text-center mt-4">
+        <a href="@Url.Action("Index", "Game")" class="btn btn-primary btn-lg">🎮 Грати ще раз</a>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // Додаємо анімацію появи для карток
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.difficulty-section, .stats-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'all 0.5s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+}
