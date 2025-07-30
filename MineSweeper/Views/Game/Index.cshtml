@@ -1,46 +1,140 @@
-﻿@model MineSweeper.Models.ViewModels.NewGameViewModel
+﻿@* Views/Game/Index.cshtml *@
+@model MineSweeper.Models.ViewModels.NewGameViewModel
 
 @{
     ViewData["Title"] = "Нова гра";
 }
 
-<h2>Налаштування нової гри</h2>
+<style>
+    .game-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 15px; /* Зменшено */
+        margin-bottom: 15px; /* Зменшено */
+        text-align: center;
+    }
 
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-controller="Game" asp-action="Index" method="post">
+        .game-card h1 {
+            font-size: 1.75rem; /* Зменшено */
+            margin-bottom: 0.5rem;
+        }
 
-            @* Сумарна валідація, якщо потрібна *@
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        .game-card p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
 
-            <div class="form-group">
-                <label asp-for="PlayerName" class="control-label"></label>
-                <input asp-for="PlayerName" class="form-control" />
-                <span asp-validation-for="PlayerName" class="text-danger"></span>
-            </div>
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px; /* Зменшено */
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        border: 1px solid #f0f0f0;
+    }
 
-            <div class="form-group">
-                <label asp-for="Width" class="control-label"></label>
-                <input asp-for="Width" class="form-control" />
-                <span asp-validation-for="Width" class="text-danger"></span>
-            </div>
+        .form-card h2 {
+            font-size: 1.5rem; /* Зменшено */
+        }
 
-            <div class="form-group">
-                <label asp-for="Height" class="control-label"></label>
-                <input asp-for="Height" class="form-control" />
-                <span asp-validation-for="Height" class="text-danger"></span>
-            </div>
+    .form-group {
+        margin-bottom: 12px; /* Зменшено */
+    }
 
-            <div class="form-group">
-                <label asp-for="Mines" class="control-label"></label>
-                <input asp-for="Mines" class="form-control" />
-                <span asp-validation-for="Mines" class="text-danger"></span>
-            </div>
+    .form-control {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px 12px; /* Зменшено */
+        font-size: 15px; /* Зменшено */
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
 
-            <div class="form-group mt-3">
-                <input type="submit" value="Почати гру" class="btn btn-primary" />
-            </div>
-        </form>
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.2);
+        }
+
+    .control-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px; /* Зменшено */
+        font-size: 0.9rem;
+        display: block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 25px; /* Зменшено */
+        font-size: 15px; /* Зменшено */
+        font-weight: 600;
+        transition: opacity 0.2s ease;
+    }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+    .grid-inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px; /* Зменшено */
+    }
+
+    media (max-width: 768px) {
+        .grid-inputs
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="game-card">
+            <h1>🚩 Сапер</h1>
+            <p>Налаштуйте параметри гри</p>
+        </div>
+
+        <div class="form-card">
+            <h2 style="color: #667eea; margin-bottom: 15px; text-align: center;">Нова гра</h2>
+
+            <form asp-controller="Game" asp-action="Index" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="form-group">
+                    <label asp-for="PlayerName" class="control-label">👤 Ім'я гравця</label>
+                    <input asp-for="PlayerName" class="form-control" placeholder="Введіть ваше ім'я" />
+                    <span asp-validation-for="PlayerName" class="text-danger"></span>
+                </div>
+
+                <div class="grid-inputs">
+                    <div class="form-group">
+                        <label asp-for="Width" class="control-label">📏 Ширина</label>
+                        <input asp-for="Width" class="form-control" />
+                        <span asp-validation-for="Width" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Height" class="control-label">📐 Висота</label>
+                        <input asp-for="Height" class="form-control" />
+                        <span asp-validation-for="Height" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Mines" class="control-label">💣 Кількість мін</label>
+                    <input asp-for="Mines" class="form-control" />
+                    <span asp-validation-for="Mines" class="text-danger"></span>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">🎮 Почати гру</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

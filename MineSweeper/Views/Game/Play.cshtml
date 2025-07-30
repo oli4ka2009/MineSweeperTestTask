@@ -1,22 +1,120 @@
-﻿@model MineSweeper.Models.ViewModels.PlayViewModel
-
-@{
+﻿@{
     ViewData["Title"] = "Сапер";
 }
 
 <style>
+    .stats-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 10px; /* Зменшено */
+        margin-bottom: 15px; /* Зменшено */
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .stat-item {
+        text-align: center;
+        margin: 5px 10px; /* Зменшено */
+    }
+
+    .stat-number {
+        font-size: 1.2em; /* Зменшено */
+        font-weight: bold;
+        display: block;
+    }
+
+    .stat-label {
+        font-size: 0.8em; /* Зменшено */
+        opacity: 0.8;
+    }
+
+    .game-controls {
+        background: white;
+        border-radius: 10px;
+        padding: 15px; /* Зменшено */
+        margin-bottom: 15px; /* Зменшено */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .mode-selector {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+        .mode-selector label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+            .mode-selector label:hover {
+                background-color: #f8f9fa;
+            }
+
+    .btn-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-size: 16px;
+        font-weight: 600;
+        transition: background-color 0.2s ease;
+    }
+
+    .game-status {
+        text-align: center;
+        padding: 15px; /* Зменшено */
+        margin: 20px 0;
+        border-radius: 15px;
+        font-size: 22px; /* Зменшено */
+        font-weight: bold;
+    }
+
+    .game-won {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+
+    .game-over {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+        color: white;
+    }
+
     .game-board {
         border-spacing: 0;
+        margin: 0 auto; /* Центрування поля */
     }
 
         .game-board td {
-            width: 30px;
-            height: 30px;
+            width: 28px; /* Зменшено */
+            height: 28px; /* Зменшено */
             text-align: center;
             vertical-align: middle;
             border: 1px solid #ccc;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 15px; /* Зменшено */
         }
 
     .cell-btn {
@@ -35,90 +133,117 @@
     .cell-revealed {
         background-color: #f5f5f5;
     }
+
+    media (max-width: 768px) {
+        .game-controls, .stats-header
+
+    {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    }
 </style>
 
-<h3>Гравець: @Model.PlayerName</h3>
-
-<form id="mode-form" method="post" asp-action="SetMode">
-    <label>
-        <input type="radio" name="currentMode" value="reveal" onchange="this.form.submit()"
-        @(Context.Session.GetString("GameMode") != "flag" ? "checked" : "") />
-        Відкрити
-    </label>
-    <label>
-        <input type="radio" name="currentMode" value="flag" onchange="this.form.submit()"
-        @(Context.Session.GetString("GameMode") == "flag" ? "checked" : "") />
-        Прапорець
-    </label>
-</form>
-
-<div style="margin-bottom: 10px; font-size: 20px; font-weight: bold;">
-    <span style="color: red;">💣 Залишилось: @Model.MinesLeft</span>
+<div class="stats-header">
+    <div class="stat-item">
+        <span class="stat-number">👤 @Model.PlayerName</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-number">💣 @Model.MinesLeft</span>
+        <span class="stat-label">Залишилось мін</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-number">🎯 @(Model.Board.Width)x@(Model.Board.Height)</span>
+        <span class="stat-label">Розмір поля</span>
+    </div>
 </div>
 
-@if (!Model.Board.IsGameOver && !Model.Board.IsGameWon)
-{
-    <form id="solver-form" asp-action="SolveNextStep" method="post" style="margin: 10px 0;">
-        <button type="submit" class="btn btn-info" id="solver-btn">Підказка від бота</button>
+<div class="game-controls">
+    <form id="mode-form" method="post" asp-action="SetMode" class="mode-selector">
+        <strong>Режим:</strong>
+        <label>
+            <input type="radio" name="currentMode" value="reveal" onchange="this.form.submit()"
+            @(Context.Session.GetString("GameMode") != "flag" ? "checked" : "") />
+            🔍 Відкрити
+        </label>
+        <label>
+            <input type="radio" name="currentMode" value="flag" onchange="this.form.submit()"
+            @(Context.Session.GetString("GameMode") == "flag" ? "checked" : "") />
+            🚩 Прапорець
+        </label>
     </form>
-}
+
+    @if (!Model.Board.IsGameOver && !Model.Board.IsGameWon)
+    {
+        <form asp-action="SolveNextStep" method="post" style="margin: 0;">
+            <button type="submit" class="btn btn-info">💡 Підказка</button>
+        </form>
+    }
+</div>
 
 @if (Model.Board.IsGameOver)
 {
-    <div style="color: red; font-weight: bold; font-size: 24px; margin: 20px 0;">Гру закінчено!</div>
-    <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
+    <div class="game-status game-over">💥 Гру закінчено! Спробуйте ще раз! 💥</div>
+    <div style="text-align: center;">
+        <a href="@Url.Action("Index", "Game")" class="btn btn-primary">🎮 Грати ще раз</a>
+    </div>
 }
 else if (Model.Board.IsGameWon)
 {
-    <div style="color: green; font-weight: bold; font-size: 24px; margin: 20px 0;">Перемога!</div>
-    <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
+    <div class="game-status game-won">🎉 Перемога! Вітаємо! 🎉</div>
+    <div style="text-align: center;">
+        <a href="@Url.Action("Index", "Game")" class="btn btn-primary">🎮 Грати ще раз</a>
+    </div>
 }
 
-<table class="game-board">
-    <tbody>
-        @for (int i = 0; i < Model.Board.Height; i++)
-        {
-            <tr>
-                @for (int j = 0; j < Model.Board.Width; j++)
-                {
-                    var cell = Model.Board.Cells[i][j];
-                    <td>
-                        @if (cell.IsRevealed || (Model.Board.IsGameOver && cell.IsMine && !cell.IsFlagged))
-                        {
-                            <div class="cell-revealed">
-                                @if (cell.IsMine)
-                                {
-                                    <span style="@(cell.IsRevealed ? "background-color: red;" : "")">💣</span>
-                                }
-                                else if (cell.AdjacentMines > 0)
-                                {
-                                    <span style="color: @(GetNumberColor(cell.AdjacentMines))">@cell.AdjacentMines</span>
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <form asp-action="HandleClick" method="post" style="margin:0; padding:0;">
-                                <input type="hidden" name="row" value="@i" />
-                                <input type="hidden" name="col" value="@j" />
-                                <button type="submit" class="cell-btn" disabled="@(Model.Board.IsGameOver || Model.Board.IsGameWon)">
-                                    @if (cell.IsFlagged)
+<div style="display: flex; justify-content: center; margin-top: 20px;">
+    <table class="game-board">
+        <tbody>
+            @for (int i = 0; i < Model.Board.Height; i++)
+            {
+                <tr>
+                    @for (int j = 0; j < Model.Board.Width; j++)
+                    {
+                        var cell = Model.Board.Cells[i][j];
+                        <td>
+                            @if (cell.IsRevealed || (Model.Board.IsGameOver && cell.IsMine && !cell.IsFlagged))
+                            {
+                                <div class="cell-revealed">
+                                    @if (cell.IsMine)
                                     {
-                                        <span>🚩</span>
+                                        <span style="@(cell.IsRevealed ? "background-color: red;" : "")">💣</span>
                                     }
-                                    else
+                                    else if (cell.AdjacentMines > 0)
                                     {
-                                        <span>&nbsp;</span>
+                                        <span style="color: @(GetNumberColor(cell.AdjacentMines))">@cell.AdjacentMines</span>
                                     }
-                                </button>
-                            </form>
-                        }
-                    </td>
-                }
-            </tr>
-        }
-    </tbody>
-</table>
+                                </div>
+                            }
+                            else
+                            {
+                                <form asp-action="HandleClick" method="post" style="margin:0; padding:0;">
+                                    <input type="hidden" name="row" value="@i" />
+                                    <input type="hidden" name="col" value="@j" />
+                                    <button type="submit" class="cell-btn" disabled="@(Model.Board.IsGameOver || Model.Board.IsGameWon)">
+                                        @if (cell.IsFlagged)
+                                        {
+                                            <span>🚩</span>
+                                        }
+                                        else
+                                        {
+                                            <span>&nbsp;</span>
+                                        }
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
 
 @functions {
     string GetNumberColor(int number)

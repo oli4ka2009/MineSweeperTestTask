@@ -103,7 +103,6 @@
 }
 else
 {
-    <!-- Загальна статистика -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="stats-card text-center">
@@ -131,7 +130,6 @@ else
         </div>
     </div>
 
-    <!-- Рейтинги за складністю -->
     @if (Model.BestResultsByDifficulty.Any())
     {
         @foreach (var difficulty in Model.BestResultsByDifficulty.OrderBy(d => d.Key))
@@ -209,22 +207,4 @@ else
     <div class="text-center mt-4">
         <a href="@Url.Action("Index", "Game")" class="btn btn-primary btn-lg">🎮 Грати ще раз</a>
     </div>
-}
-
-@section Scripts {
-    <script>
-        // Додаємо анімацію появи для карток
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.difficulty-section, .stats-card');
-            cards.forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    card.style.transition = 'all 0.5s ease';
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, index * 100);
-            });
-        });
-    </script>
 }
