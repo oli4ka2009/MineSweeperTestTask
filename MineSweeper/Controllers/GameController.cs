@@ -22,7 +22,6 @@ namespace MineSweeper.Controllers
 
         public ActionResult Index()
         {
-            // Створюємо модель з деякими значеннями за замовчуванням
             var model = new NewGameViewModel
             {
                 Width = 10,
@@ -32,13 +31,10 @@ namespace MineSweeper.Controllers
             return View(model);
         }
 
-        // POST: /Game/Index
-        // Ця дія спрацює, коли користувач натисне кнопку "Почати гру"
         [HttpPost]
         [ValidateAntiForgeryToken]
         public ActionResult Index(NewGameViewModel model)
         {
-            // Перевіряємо, чи пройшла модель валідацію
             if (ModelState.IsValid)
             {
                 if (model.Mines >= model.Width * model.Height)
@@ -53,54 +49,41 @@ namespace MineSweeper.Controllers
 
                 HttpContext.Session.SetObject(SessionKeys.GameBoard, board);
                 HttpContext.Session.SetString(SessionKeys.GameMode, "reveal");
+
+                // Очищуємо час старту - він буде встановлений при першому ході
                 HttpContext.Session.Remove(SessionKeys.GameStartTime);
+
                 return RedirectToAction("Play");
             }
 
-            // Якщо є помилки валідації, повертаємо користувачу ту саму форму,
-            // але вже з повідомленнями про помилки.
             return View(model);
         }
 
-        // Дія для відображення ігрового поля
         public IActionResult Play()
         {
-            // 1. Отримуємо дошку з сесії
             var board = HttpContext.Session.GetObject<GameBoard>(SessionKeys.GameBoard);
 
-            // Якщо дошки в сесії немає (наприклад, сесія закінчилася),
-            // перенаправляємо на сторінку створення нової гри.
             if (board == null)
             {
                 return RedirectToAction("Index");
             }
 
-            // 2. Розраховуємо кількість мін, що залишилися
+            // Розраховуємо кількість мін, що залишилися
             int flagsPlaced = board.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
             int minesLeft = board.MinesCount - flagsPlaced;
 
-            // 3. Розраховуємо час, що минув
+            // Отримуємо час старту (якщо є)
             var startTime = HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime);
-            TimeSpan elapsedTime = TimeSpan.Zero;
 
-            if (startTime.HasValue)
-            {
-                // Якщо гра ще триває, рахуємо час від старту до зараз.
-                // Якщо гра закінчена, час "заморожується" на момент останнього ходу,
-                // оскільки цей код виконується лише при перезавантаженні сторінки.
-                elapsedTime = DateTime.UtcNow - startTime.Value;
-            }
-
-            // 4. Створюємо та заповнюємо ViewModel
             var viewModel = new PlayViewModel
             {
                 Board = board,
                 PlayerName = HttpContext.Session.GetString(SessionKeys.PlayerName) ?? "Гравець",
                 MinesLeft = minesLeft,
-                ElapsedTimeFormatted = elapsedTime.ToString(@"mm\:ss") // Форматуємо час
+                GameStartTime = startTime, // Передаємо час старту в ViewModel
+                IsGameActive = !board.IsGameOver && !board.IsGameWon && startTime.HasValue
             };
 
-            // 5. Передаємо готову ViewModel у представлення
             return View(viewModel);
         }
 
@@ -115,14 +98,20 @@ namespace MineSweeper.Controllers
                 return RedirectToAction("Index");
             }
 
+            // Встановлюємо час старту при першому ході
+            if (HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime) == null)
+            {
+                HttpContext.Session.SetObject(SessionKeys.GameStartTime, DateTime.UtcNow);
+            }
+
             if (gameMode == "flag")
             {
                 _gameService.ToggleFlag(board, row, col);
             }
-            else // "reveal" mode
+            else
             {
                 _gameService.RevealCell(board, row, col);
-                if (!board.IsGameOver) // Перевіряємо на перемогу тільки якщо гра не закінчилася поразкою
+                if (!board.IsGameOver)
                 {
                     if (_gameService.CheckForWin(board))
                     {
@@ -131,24 +120,14 @@ namespace MineSweeper.Controllers
                 }
             }
 
-            if (HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime) == null)
-            {
-                // Зберігаємо поточний час як час початку
-                HttpContext.Session.SetObject(SessionKeys.GameStartTime, DateTime.UtcNow);
-            }
-            // Тут буде логіка перевірки на перемогу/поразку
-
-            HttpContext.Session.SetObject(SessionKeys.GameBoard, board); // Зберігаємо оновлене поле
-            return RedirectToAction("Play"); // Перенаправляємо назад на ігрове поле
+            HttpContext.Session.SetObject(SessionKeys.GameBoard, board);
+            return RedirectToAction("Play");
         }
 
         [HttpPost]
         public IActionResult SetMode(string currentMode)
         {
-            // Зберігаємо вибраний режим у сесію
             HttpContext.Session.SetString(SessionKeys.GameMode, currentMode ?? "reveal");
-
-            // Повертаємо користувача на ігрове поле
             return RedirectToAction("Play");
         }
 
@@ -161,12 +140,17 @@ namespace MineSweeper.Controllers
                 return RedirectToAction("Play");
             }
 
+            // Встановлюємо час старту, якщо це перший хід
+            if (HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime) == null)
+            {
+                HttpContext.Session.SetObject(SessionKeys.GameStartTime, DateTime.UtcNow);
+            }
+
             bool isFirstMove = !board.Cells.SelectMany(r => r).Any(c => c.IsRevealed);
             SolverMove? move = null;
 
             if (isFirstMove)
             {
-                // Якщо це перший хід, робимо його випадково
                 var random = new Random();
                 int row = random.Next(board.Height);
                 int col = random.Next(board.Width);
@@ -174,10 +158,8 @@ namespace MineSweeper.Controllers
             }
             else
             {
-                // 1. Спочатку шукаємо логічний хід
                 move = _solverService.FindNextMove(board);
 
-                // 2. Якщо логічного ходу немає, бот вгадує
                 if (move == null)
                 {
                     TempData["SolverMessage"] = "Логічного ходу не знайдено, бот вгадує.";
@@ -185,7 +167,6 @@ namespace MineSweeper.Controllers
                 }
             }
 
-            // Виконуємо знайдений хід (логічний або випадковий)
             if (move != null)
             {
                 if (move.Action == MoveAction.Flag)
@@ -197,7 +178,6 @@ namespace MineSweeper.Controllers
                     _gameService.RevealCell(board, move.Row, move.Col);
                 }
 
-                // Перевіряємо на перемогу після будь-якого ходу
                 if (!board.IsGameOver && _gameService.CheckForWin(board))
                 {
                     board.IsGameWon = true;
