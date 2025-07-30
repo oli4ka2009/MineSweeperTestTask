@@ -10,18 +10,27 @@ namespace MineSweeper.Controllers
     public class GameController : Controller
     {
         private readonly IGameBoardFactory _boardFactory;
-        private readonly IGameService _gameService;
         private readonly IMinesweeperSolver _solverService;
         private readonly IGameSessionService _sessionService;
         private readonly IGameResultService _resultService;
+        private readonly IGameFactory _gameFactory;
+        private readonly IGameStateEvaluator _gameStateEvaluator;
+        private readonly IGameplayService _gameplayService;
+        private readonly IHintService _hintService;
 
-        public GameController(IGameBoardFactory boardFactory, IGameService gameService, IMinesweeperSolver solverService, IGameSessionService sessionService, IGameResultService resultService)
+        public GameController(IGameBoardFactory boardFactory, 
+            IMinesweeperSolver solverService, IGameSessionService sessionService, 
+            IGameResultService resultService, IGameFactory gameFactory, 
+            IGameStateEvaluator gameStateEvaluator, IGameplayService gameplayService, IHintService hintService)
         {
             _boardFactory = boardFactory;
-            _gameService = gameService;
             _solverService = solverService;
             _sessionService = sessionService;
             _resultService = resultService;
+            _gameFactory = gameFactory;
+            _gameStateEvaluator = gameStateEvaluator;
+            _gameplayService = gameplayService;
+            _hintService = hintService;
         }
 
         public ActionResult Index()
@@ -47,7 +56,7 @@ namespace MineSweeper.Controllers
             }
 
             _sessionService.SavePlayerName(HttpContext, model.PlayerName);
-            var board = _gameService.StartNewGame(model.Width, model.Height, model.Mines);
+            var board = _gameFactory.StartNewGame(model.Width, model.Height, model.Mines);
             _sessionService.SaveGameBoard(HttpContext, board);
             _sessionService.SaveGameMode(HttpContext, "reveal");
 
@@ -67,7 +76,7 @@ namespace MineSweeper.Controllers
             {
                 Board = board,
                 PlayerName = _sessionService.GetPlayerName(HttpContext),
-                MinesLeft = _gameService.CountRemainingMines(board)
+                MinesLeft = _gameStateEvaluator.CountRemainingMines(board)
             };
 
             return View(viewModel);
@@ -92,7 +101,7 @@ namespace MineSweeper.Controllers
             }
 
             // Виконуємо хід
-            _gameService.HandlePlayerMove(board, row, col, gameMode);
+            _gameplayService.HandlePlayerMove(board, row, col, gameMode);
 
             // Перевіряємо на перемогу і зберігаємо результат
             await CheckAndSaveGameResult(board);
@@ -128,7 +137,7 @@ namespace MineSweeper.Controllers
             }
 
             // Виконуємо хід бота
-            if (_gameService.SolveNextStep(board, _solverService))
+            if (_hintService.SolveNextStep(board, _solverService))
             {
                 // Перевіряємо на перемогу і зберігаємо результат
                 await CheckAndSaveGameResult(board);
