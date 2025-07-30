@@ -12,12 +12,16 @@ namespace MineSweeper.Controllers
         private readonly IGameBoardFactory _boardFactory;
         private readonly IGameService _gameService;
         private readonly IMinesweeperSolver _solverService;
+        private readonly IGameSessionService _sessionService;
+        private readonly IGameResultService _resultService;
 
-        public GameController(IGameBoardFactory boardFactory, IGameService gameService, IMinesweeperSolver solverService)
+        public GameController(IGameBoardFactory boardFactory, IGameService gameService, IMinesweeperSolver solverService, IGameSessionService sessionService, IGameResultService resultService)
         {
             _boardFactory = boardFactory;
             _gameService = gameService;
             _solverService = solverService;
+            _sessionService = sessionService;
+            _resultService = resultService;
         }
 
         public ActionResult Index()
@@ -35,140 +39,118 @@ namespace MineSweeper.Controllers
         [ValidateAntiForgeryToken]
         public ActionResult Index(NewGameViewModel model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid || model.Mines >= model.Width * model.Height)
             {
                 if (model.Mines >= model.Width * model.Height)
-                {
                     ModelState.AddModelError("Mines", "Кількість мін має бути меншою за кількість клітинок.");
-                    return View(model);
-                }
-
-                HttpContext.Session.SetString(SessionKeys.PlayerName, model.PlayerName);
-
-                GameBoard board = _boardFactory.Create(model.Width, model.Height, model.Mines);
-
-                HttpContext.Session.SetObject(SessionKeys.GameBoard, board);
-                HttpContext.Session.SetString(SessionKeys.GameMode, "reveal");
-
-                return RedirectToAction("Play");
+                return View(model);
             }
 
-            return View(model);
+            _sessionService.SavePlayerName(HttpContext, model.PlayerName);
+            var board = _gameService.StartNewGame(model.Width, model.Height, model.Mines);
+            _sessionService.SaveGameBoard(HttpContext, board);
+            _sessionService.SaveGameMode(HttpContext, "reveal");
+
+            return RedirectToAction("Play");
         }
 
         public IActionResult Play()
         {
-            var board = HttpContext.Session.GetObject<GameBoard>(SessionKeys.GameBoard);
+            var board = _sessionService.LoadGameBoard(HttpContext);
 
             if (board == null)
             {
                 return RedirectToAction("Index");
             }
 
-            // Розраховуємо кількість мін, що залишилися
-            int flagsPlaced = board.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
-            int minesLeft = board.MinesCount - flagsPlaced;
-
             var viewModel = new PlayViewModel
             {
                 Board = board,
-                PlayerName = HttpContext.Session.GetString(SessionKeys.PlayerName) ?? "Гравець",
-                MinesLeft = minesLeft
+                PlayerName = _sessionService.GetPlayerName(HttpContext),
+                MinesLeft = _gameService.CountRemainingMines(board)
             };
 
             return View(viewModel);
         }
 
         [HttpPost]
-        public IActionResult HandleClick(int row, int col)
+        public async Task<IActionResult> HandleClickAsync(int row, int col)
         {
-            var board = HttpContext.Session.GetObject<GameBoard>(SessionKeys.GameBoard);
-            var gameMode = HttpContext.Session.GetString(SessionKeys.GameMode) ?? "reveal";
+            var board = _sessionService.LoadGameBoard(HttpContext);
+            var gameMode = _sessionService.GetGameMode(HttpContext);
 
             if (board == null || board.IsGameOver)
             {
+                _sessionService.ClearGameStartTime(HttpContext);
                 return RedirectToAction("Index");
             }
 
-            if (gameMode == "flag")
+            if (_sessionService.GetGameStartTime(HttpContext) == null)
             {
-                _gameService.ToggleFlag(board, row, col);
+                _sessionService.SaveGameStartTime(HttpContext);
             }
-            else
+
+            _gameService.HandlePlayerMove(board, row, col, gameMode);
+            _sessionService.SaveGameBoard(HttpContext, board);
+
+            if (board.IsGameWon)
             {
-                _gameService.RevealCell(board, row, col);
-                if (!board.IsGameOver)
+                var startTime = _sessionService.GetGameStartTime(HttpContext);
+                var playerName = _sessionService.GetPlayerName(HttpContext);
+                var endTime = DateTime.UtcNow;
+
+                if (startTime.HasValue)
                 {
-                    if (_gameService.CheckForWin(board))
-                    {
-                        board.IsGameWon = true;
-                    }
+                    await _resultService.SaveResultAsync(board, playerName, startTime.Value, endTime);
+                    _sessionService.ClearGameStartTime(HttpContext);
                 }
             }
 
-            HttpContext.Session.SetObject(SessionKeys.GameBoard, board);
             return RedirectToAction("Play");
         }
 
         [HttpPost]
         public IActionResult SetMode(string currentMode)
         {
-            HttpContext.Session.SetString(SessionKeys.GameMode, currentMode ?? "reveal");
+            _sessionService.SaveGameMode(HttpContext, currentMode ?? "reveal");
             return RedirectToAction("Play");
         }
 
         [HttpPost]
-        public IActionResult SolveNextStep()
+        public async Task<IActionResult> SolveNextStepAsync()
         {
-            var board = HttpContext.Session.GetObject<GameBoard>("GameBoard");
-            if (board == null || board.IsGameOver || board.IsGameWon)
+            var board = _sessionService.LoadGameBoard(HttpContext);
+
+            if (board == null || board.IsGameOver)
             {
+                _sessionService.ClearGameStartTime(HttpContext);
                 return RedirectToAction("Play");
             }
 
-            bool isFirstMove = !board.Cells.SelectMany(r => r).Any(c => c.IsRevealed);
-            SolverMove? move = null;
-
-            if (isFirstMove)
+            if (board.IsGameWon)
             {
-                var random = new Random();
-                int row = random.Next(board.Height);
-                int col = random.Next(board.Width);
-                move = new SolverMove { Row = row, Col = col, Action = MoveAction.Reveal };
-            }
-            else
-            {
-                move = _solverService.FindNextMove(board);
+                var startTime = _sessionService.GetGameStartTime(HttpContext);
+                var playerName = _sessionService.GetPlayerName(HttpContext);
+                var endTime = DateTime.UtcNow;
 
-                if (move == null)
+                if (startTime.HasValue)
                 {
-                    TempData["SolverMessage"] = "Логічного ходу не знайдено, бот вгадує.";
-                    move = _solverService.FindBestGuess(board);
+                    await _resultService.SaveResultAsync(board, playerName, startTime.Value, endTime);
+                    _sessionService.ClearGameStartTime(HttpContext);
+                    return RedirectToAction("Play");
                 }
             }
 
-            if (move != null)
+            if (_sessionService.GetGameStartTime(HttpContext) == null)
             {
-                if (move.Action == MoveAction.Flag)
-                {
-                    _gameService.ToggleFlag(board, move.Row, move.Col);
-                }
-                else
-                {
-                    _gameService.RevealCell(board, move.Row, move.Col);
-                }
-
-                if (!board.IsGameOver && _gameService.CheckForWin(board))
-                {
-                    board.IsGameWon = true;
-                }
-            }
-            else
-            {
-                TempData["SolverMessage"] = "Бот не може зробити хід (можливо, гра завершена).";
+                _sessionService.SaveGameStartTime(HttpContext);
             }
 
-            HttpContext.Session.SetObject("GameBoard", board);
+            if (_gameService.SolveNextStep(board, _solverService))
+            {
+                _sessionService.SaveGameBoard(HttpContext, board);
+            }
+
             return RedirectToAction("Play");
         }
     }

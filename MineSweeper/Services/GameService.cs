@@ -61,5 +61,72 @@ namespace MineSweeper.Services
             }
             return true; // Всі безпечні клітинки відкрито
         }
+
+        public GameBoard StartNewGame(int width, int height, int minesCount)
+        {
+            return new GameBoardFactory().Create(width, height, minesCount);
+        }
+
+        public void HandlePlayerMove(GameBoard board, int row, int col, string mode)
+        {
+            if (mode == "flag")
+            {
+                ToggleFlag(board, row, col);
+            }
+            else
+            {
+                RevealCell(board, row, col);
+                if (!board.IsGameOver && CheckForWin(board))
+                {
+                    board.IsGameWon = true;
+                }
+            }
+        }
+
+        public bool SolveNextStep(GameBoard board, IMinesweeperSolver solver)
+        {
+            bool isFirstMove = !board.Cells.SelectMany(r => r).Any(c => c.IsRevealed);
+            SolverMove? move;
+
+            if (isFirstMove)
+            {
+                var random = new Random();
+                int row = random.Next(board.Height);
+                int col = random.Next(board.Width);
+                move = new SolverMove { Row = row, Col = col, Action = MoveAction.Reveal };
+            }
+            else
+            {
+                move = solver.FindNextMove(board);
+
+                if (move == null)
+                {
+                    move = solver.FindBestGuess(board);
+                }
+            }
+
+            if (move == null)
+            {
+                return false;
+            }
+
+            if (move.Action == MoveAction.Flag)
+                ToggleFlag(board, move.Row, move.Col);
+            else
+                RevealCell(board, move.Row, move.Col);
+
+            if (!board.IsGameOver && CheckForWin(board))
+            {
+                board.IsGameWon = true;
+            }
+
+            return true;
+        }
+
+        public int CountRemainingMines(GameBoard board)
+        {
+            int flagsPlaced = board.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
+            return board.MinesCount - flagsPlaced;
+        }
     }
 }

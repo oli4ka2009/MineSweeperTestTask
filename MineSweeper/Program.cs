@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using MineSweeper.Data;
 using MineSweeper.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +9,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IGameBoardFactory, GameBoardFactory>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddScoped<IMinesweeperSolver, MinesweeperSolver>();
+builder.Services.AddScoped<IGameSessionService, GameSessionService>();
+builder.Services.AddScoped<IGameResultService, GameResultService>();
 
 builder.Services.AddDistributedMemoryCache(); // Додає кеш в пам'яті для зберігання сесії
 
@@ -17,6 +21,9 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true; // Робимо cookie недоступним для скриптів на клієнті
     options.Cookie.IsEssential = true; // Важливо для відповідності GDPR
 });
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
