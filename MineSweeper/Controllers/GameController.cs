@@ -50,9 +50,6 @@ namespace MineSweeper.Controllers
                 HttpContext.Session.SetObject(SessionKeys.GameBoard, board);
                 HttpContext.Session.SetString(SessionKeys.GameMode, "reveal");
 
-                // Очищуємо час старту - він буде встановлений при першому ході
-                HttpContext.Session.Remove(SessionKeys.GameStartTime);
-
                 return RedirectToAction("Play");
             }
 
@@ -72,16 +69,11 @@ namespace MineSweeper.Controllers
             int flagsPlaced = board.Cells.SelectMany(row => row).Count(cell => cell.IsFlagged);
             int minesLeft = board.MinesCount - flagsPlaced;
 
-            // Отримуємо час старту (якщо є)
-            var startTime = HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime);
-
             var viewModel = new PlayViewModel
             {
                 Board = board,
                 PlayerName = HttpContext.Session.GetString(SessionKeys.PlayerName) ?? "Гравець",
-                MinesLeft = minesLeft,
-                GameStartTime = startTime, // Передаємо час старту в ViewModel
-                IsGameActive = !board.IsGameOver && !board.IsGameWon && startTime.HasValue
+                MinesLeft = minesLeft
             };
 
             return View(viewModel);
@@ -96,12 +88,6 @@ namespace MineSweeper.Controllers
             if (board == null || board.IsGameOver)
             {
                 return RedirectToAction("Index");
-            }
-
-            // Встановлюємо час старту при першому ході
-            if (HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime) == null)
-            {
-                HttpContext.Session.SetObject(SessionKeys.GameStartTime, DateTime.UtcNow);
             }
 
             if (gameMode == "flag")
@@ -138,12 +124,6 @@ namespace MineSweeper.Controllers
             if (board == null || board.IsGameOver || board.IsGameWon)
             {
                 return RedirectToAction("Play");
-            }
-
-            // Встановлюємо час старту, якщо це перший хід
-            if (HttpContext.Session.GetObject<DateTime?>(SessionKeys.GameStartTime) == null)
-            {
-                HttpContext.Session.SetObject(SessionKeys.GameStartTime, DateTime.UtcNow);
             }
 
             bool isFirstMove = !board.Cells.SelectMany(r => r).Any(c => c.IsRevealed);

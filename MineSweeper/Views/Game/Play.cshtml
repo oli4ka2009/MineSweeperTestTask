@@ -35,7 +35,6 @@
     .cell-revealed {
         background-color: #f5f5f5;
     }
-
 </style>
 
 <h3>Гравець: @Model.PlayerName</h3>
@@ -53,9 +52,8 @@
     </label>
 </form>
 
-<div style="display: flex; justify-content: space-between; max-width: 300px; margin-bottom: 10px; font-size: 20px; font-weight: bold;">
+<div style="margin-bottom: 10px; font-size: 20px; font-weight: bold;">
     <span style="color: red;">💣 Залишилось: @Model.MinesLeft</span>
-    <span id="game-timer" style="color: black;">🕒 00:00</span>
 </div>
 
 @if (!Model.Board.IsGameOver && !Model.Board.IsGameWon)
@@ -75,8 +73,6 @@ else if (Model.Board.IsGameWon)
     <div style="color: green; font-weight: bold; font-size: 24px; margin: 20px 0;">Перемога!</div>
     <a href="@Url.Action("Index", "Game")" class="btn btn-primary">Грати ще раз</a>
 }
-
-
 
 <table class="game-board">
     <tbody>
@@ -141,73 +137,3 @@ else if (Model.Board.IsGameWon)
         }
     }
 }
-
-<script>
-    // --- Глобальні змінні ---
-    window.minesweeperTimer = {
-        interval: null,
-        startTime: null,
-        isActive: false
-    };
-
-    // --- Функції ---
-    function formatTime(totalSeconds) {
-        const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-        const seconds = String(totalSeconds % 60).padStart(2, '0');
-        return `🕒 ${minutes}:${seconds}`;
-    }
-
-    function updateTimerDisplay() {
-        if (!window.minesweeperTimer.isActive) return;
-
-        const now = new Date().getTime();
-        const elapsedSeconds = Math.floor((now - window.minesweeperTimer.startTime) / 1000);
-
-        const timerElement = document.getElementById('game-timer');
-        if (timerElement) {
-            timerElement.innerHTML = formatTime(elapsedSeconds);
-        }
-    }
-
-    function initializeTimer() {
-        // Завжди зупиняємо старий таймер
-        if (window.minesweeperTimer.interval) {
-            clearInterval(window.minesweeperTimer.interval);
-        }
-
-        // Отримуємо дані з сервера
-        const isGameActiveFromServer = @Model.IsGameActive.ToString().ToLower();
-        const timerElement = document.getElementById('game-timer');
-
-        @if (Model.GameStartTime.HasValue)
-    {
-        // Якщо гра почалася, встановлюємо час старту
-        <text>
-                    // Конвертуємо час з C# UTC в мілісекунди JavaScript
-                    window.minesweeperTimer.startTime = new Date('@Model.GameStartTime.Value.ToString("o")').getTime();
-        </text>
-    }
-    else
-    {
-        <text>
-            window.minesweeperTimer.startTime = null;
-        </text>
-    }
-
-        window.minesweeperTimer.isActive = isGameActiveFromServer && window.minesweeperTimer.startTime !== null;
-
-        if (window.minesweeperTimer.isActive) {
-            updateTimerDisplay(); // Оновлюємо одразу, щоб показати правильний час
-            window.minesweeperTimer.interval = setInterval(updateTimerDisplay, 1000);
-        } else if (timerElement) {
-            // Якщо гра не почалася або закінчилася, показуємо час з останнього стану
-            const elapsedSeconds = window.minesweeperTimer.startTime
-                ? Math.floor((new Date().getTime() - window.minesweeperTimer.startTime) / 1000)
-                : 0;
-            timerElement.innerHTML = formatTime(elapsedSeconds > 0 ? elapsedSeconds : 0);
-        }
-    }
-
-    // --- Запуск ---
-    document.addEventListener('DOMContentLoaded', initializeTimer);
-</script>
