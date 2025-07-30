@@ -8,7 +8,6 @@ namespace MineSweeper.Services
         {
             var board = new GameBoard { Width = width, Height = height, MinesCount = minesCount };
 
-            // 1. Створюємо пусте поле
             for (int i = 0; i < height; i++)
             {
                 board.Cells.Add(new List<Cell>());
@@ -18,7 +17,6 @@ namespace MineSweeper.Services
                 }
             }
 
-            // 2. Розставляємо міни
             var random = new Random();
             int minesPlaced = 0;
             while (minesPlaced < minesCount)
@@ -32,7 +30,6 @@ namespace MineSweeper.Services
                 }
             }
 
-            // 3. Рахуємо сусідні міни для кожної клітинки
             for (int i = 0; i < height; i++)
             {
                 for (int j = 0; j < width; j++)

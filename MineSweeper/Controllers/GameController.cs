@@ -94,19 +94,15 @@ namespace MineSweeper.Controllers
                 return RedirectToAction("Index");
             }
 
-            // Встановлюємо час початку гри при першому ході
             if (_sessionService.GetGameStartTime(HttpContext) == null)
             {
                 _sessionService.SaveGameStartTime(HttpContext);
             }
 
-            // Виконуємо хід
             _gameplayService.HandlePlayerMove(board, row, col, gameMode);
 
-            // Перевіряємо на перемогу і зберігаємо результат
             await CheckAndSaveGameResult(board);
 
-            // Зберігаємо оновлену дошку
             _sessionService.SaveGameBoard(HttpContext, board);
 
             return RedirectToAction("Play");
@@ -130,28 +126,21 @@ namespace MineSweeper.Controllers
                 return RedirectToAction("Play");
             }
 
-            // Встановлюємо час початку гри при першому ході
             if (_sessionService.GetGameStartTime(HttpContext) == null)
             {
                 _sessionService.SaveGameStartTime(HttpContext);
             }
 
-            // Виконуємо хід бота
             if (_hintService.SolveNextStep(board, _solverService))
             {
-                // Перевіряємо на перемогу і зберігаємо результат
                 await CheckAndSaveGameResult(board);
 
-                // Зберігаємо оновлену дошку
                 _sessionService.SaveGameBoard(HttpContext, board);
             }
 
             return RedirectToAction("Play");
         }
 
-        /// <summary>
-        /// Перевіряє чи гра закінчена перемогою і зберігає результат
-        /// </summary>
         private async Task CheckAndSaveGameResult(GameBoard board)
         {
             if (board.IsGameWon)
@@ -169,14 +158,28 @@ namespace MineSweeper.Controllers
                     }
                     catch (Exception ex)
                     {
-                        // Логування помилки (можна додати ILogger)
-                        // _logger.LogError(ex, "Помилка при збереженні результату гри");
-
-                        // Все одно очищуємо час початку, щоб не зберігати двічі
                         _sessionService.ClearGameStartTime(HttpContext);
                     }
                 }
             }
+        }
+
+        [HttpPost]
+        public IActionResult PlayAgain()
+        {
+            var oldBoard = _sessionService.LoadGameBoard(HttpContext);
+            if (oldBoard == null)
+            {
+                return RedirectToAction("Index");
+            }
+
+            var board = _gameFactory.StartNewGame(oldBoard.Width, oldBoard.Height, oldBoard.MinesCount);
+
+            _sessionService.SaveGameBoard(HttpContext, board);
+
+            _sessionService.ClearGameStartTime(HttpContext);
+
+            return RedirectToAction("Play");
         }
     }
 }

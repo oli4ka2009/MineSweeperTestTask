@@ -6,12 +6,10 @@ namespace MineSweeper.Services
     {
         public void RevealCell(GameBoard board, int row, int col)
         {
-            // Перевірка виходу за межі поля
             if (row < 0 || row >= board.Height || col < 0 || col >= board.Width) return;
 
             var cell = board.Cells[row][col];
 
-            // Не відкриваємо вже відкриту клітинку або клітинку з прапорцем
             if (cell.IsRevealed || cell.IsFlagged) return;
 
             cell.IsRevealed = true;
@@ -39,7 +37,7 @@ namespace MineSweeper.Services
         {
             if (row < 0 || row >= board.Height || col < 0 || col >= board.Width) return;
             var cell = board.Cells[row][col];
-            if (!cell.IsRevealed) // Прапорець можна ставити/знімати тільки на закритих клітинках
+            if (!cell.IsRevealed)
             {
                 cell.IsFlagged = !cell.IsFlagged;
             }

@@ -1,10 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-
 using MineSweeper.Models.ViewModels;
-
 using MineSweeper.Services;
-
-
 
 namespace MineSweeper.Controllers
 {

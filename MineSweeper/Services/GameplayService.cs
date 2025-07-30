@@ -7,7 +7,6 @@ namespace MineSweeper.Services
         private readonly ICellInteractionService _cellInteractionService;
         private readonly IGameStateEvaluator _gameStateEvaluator;
 
-        // 2. Створюємо конструктор, який приймає потрібні сервіси
         public GameplayService(ICellInteractionService cellInteractionService, IGameStateEvaluator gameStateEvaluator)
         {
             _cellInteractionService = cellInteractionService;

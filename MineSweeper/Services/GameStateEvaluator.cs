@@ -6,7 +6,6 @@ namespace MineSweeper.Services
     {
         public bool CheckForWin(GameBoard board)
         {
-            // Перемога, якщо всі не-міни відкрито
             for (int i = 0; i < board.Height; i++)
             {
                 for (int j = 0; j < board.Width; j++)
@@ -14,11 +13,11 @@ namespace MineSweeper.Services
                     var cell = board.Cells[i][j];
                     if (!cell.IsMine && !cell.IsRevealed)
                     {
-                        return false; // Знайдена закрита безпечна клітинка
+                        return false;
                     }
                 }
             }
-            return true; // Всі безпечні клітинки відкрито
+            return true;
         }
 
         public int CountRemainingMines(GameBoard board)

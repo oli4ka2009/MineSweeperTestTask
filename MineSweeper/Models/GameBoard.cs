@@ -9,7 +9,6 @@
         public bool IsGameOver { get; set; } = false;
         public bool IsGameWon { get; set; } = false;
 
-        // Конструктор можна залишити порожнім або додати логіку ініціалізації
         public GameBoard()
         {
             Cells = new List<List<Cell>>();

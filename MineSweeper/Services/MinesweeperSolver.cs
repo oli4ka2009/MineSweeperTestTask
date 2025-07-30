@@ -6,27 +6,21 @@ namespace MineSweeper.Services
     {
         public SolverMove? FindNextMove(GameBoard board)
         {
-            // 1. Спочатку шукаємо прості, 100% гарантовані ходи.
             var basicMove = FindBasicMove(board);
             if (basicMove != null)
             {
                 return basicMove;
             }
 
-            // 2. Якщо простих ходів немає, шукаємо складніші патерни (логіка віднімання).
             var advancedMove = FindAdvancedMove(board);
             if (advancedMove != null)
             {
                 return advancedMove;
             }
 
-            // Якщо жодного логічного ходу не знайдено, повертаємо null.
             return null;
         }
 
-        /// <summary>
-        /// Знаходить хід навмання серед доступних клітинок.
-        /// </summary>
         public SolverMove? FindBestGuess(GameBoard board)
         {
             var availableCells = new List<(int row, int col)>();
@@ -43,16 +37,13 @@ namespace MineSweeper.Services
 
             if (availableCells.Any())
             {
-                // Вибираємо випадкову клітинку з доступних
                 var random = new Random();
                 var (row, col) = availableCells[random.Next(availableCells.Count)];
                 return new SolverMove { Row = row, Col = col, Action = MoveAction.Reveal };
             }
 
-            return null; // Немає клітинок для ходу
+            return null;
         }
-
-        // --- Приватні методи з логікою ---
 
         private SolverMove? FindBasicMove(GameBoard board)
         {
@@ -67,7 +58,6 @@ namespace MineSweeper.Services
                     var hiddenNeighbors = neighbors.Where(n => !n.cell.IsRevealed).ToList();
                     var flaggedNeighbors = neighbors.Where(n => n.cell.IsFlagged).ToList();
 
-                    // Правило №2: Всі прапорці розставлено, можна відкривати
                     if (cell.AdjacentMines == flaggedNeighbors.Count && hiddenNeighbors.Count > flaggedNeighbors.Count)
                     {
                         var safeCell = hiddenNeighbors.FirstOrDefault(n => !n.cell.IsFlagged);
@@ -77,7 +67,6 @@ namespace MineSweeper.Services
                         }
                     }
 
-                    // Правило №1: Всі невідомі - міни, можна ставити прапорці
                     if (cell.AdjacentMines == hiddenNeighbors.Count && hiddenNeighbors.Count > flaggedNeighbors.Count)
                     {
                         var mineCell = hiddenNeighbors.FirstOrDefault(n => !n.cell.IsFlagged);
@@ -111,7 +100,6 @@ namespace MineSweeper.Services
 
                     if (unflaggedNeighbors2.Count <= unflaggedNeighbors1.Count || effectiveMines2 <= 0) continue;
 
-                    // Ключова зміна: порівнюємо unflaggedNeighbors, а не hiddenNeighbors
                     if (unflaggedNeighbors1.All(n1 => unflaggedNeighbors2.Any(n2 => n1.row == n2.row && n1.col == n2.col)))
                     {
                         var uniqueToNeighbors2 = unflaggedNeighbors2.Where(n2 => !unflaggedNeighbors1.Any(n1 => n1.row == n2.row && n1.col == n2.col)).ToList();
@@ -133,8 +121,6 @@ namespace MineSweeper.Services
             }
             return null;
         }
-
-        // --- Допоміжні методи ---
 
         private List<(Cell cell, int row, int col)> GetNeighbors(GameBoard board, int row, int col)
         {
