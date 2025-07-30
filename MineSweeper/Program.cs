@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IGameBoardFactory, GameBoardFactory>();
+builder.Services.AddScoped<IDifficultyAnalyzer, DifficultyAnalyzer>();
 builder.Services.AddScoped<IMinesweeperSolver, MinesweeperSolver>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
 builder.Services.AddScoped<IGameResultService, GameResultService>();
@@ -15,6 +16,7 @@ builder.Services.AddScoped<IGameStateEvaluator, GameStateEvaluator>();
 builder.Services.AddScoped<IHintService, HintService>();
 builder.Services.AddScoped<ICellInteractionService, CellInteractionService>();
 builder.Services.AddScoped<IGameplayService, GameplayService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 
 builder.Services.AddDistributedMemoryCache(); // Додає кеш в пам'яті для зберігання сесії
 
